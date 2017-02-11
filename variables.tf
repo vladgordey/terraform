@@ -36,4 +36,5 @@ variable "asg_desired" {
 
 variable "admin_cidr_ingress" {
   description = "CIDR to allow tcp/22 ingress to EC2 instance"
+  default = "10.0.0.0/16"
 }
