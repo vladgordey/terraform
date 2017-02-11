@@ -1,6 +1,6 @@
 variable "aws_region" {
   description = "The AWS region to create things in."
-  default     = "us-west-2"
+  default     = "eu-central-1"
 }
 variable "short_name" {default = "gordey"}
 variable "private_subnet_cidr" {default = "10.0.2.0/24"}
