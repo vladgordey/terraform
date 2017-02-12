@@ -9,9 +9,6 @@ variable "az_count" {
   default     = "2"
 }
 
-variable "key_name" {
-  description = "Name of AWS key pair"
-}
 
 variable "instance_type" {
   default     = "t2.small"
