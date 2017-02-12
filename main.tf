@@ -9,7 +9,12 @@ data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
   cidr_block = "10.10.0.0/16"
+  enable_dns_hostnames = true
+  tags {
+    Name = "${var.short_name}-vpc"
+  }
 }
+
 
 resource "aws_subnet" "main" {
   count             = "${var.az_count}"
@@ -122,14 +127,12 @@ resource "aws_security_group" "instance_sg" {
 
 ## EC2
 
-resource "aws_vpc" "main" {
-  cidr_block = "${var.vpc_cidr}"
-  enable_dns_hostnames = true
-  tags {
-    Name = "${var.short_name}-vpc"
-  }
+resource "aws_instance" "another_one" {
+  ami           = "ami-5b31fd34"
+  vpc_security_group_ids = ["${aws_security_group.instance_sg.id}"]
+  subnet_id = "${aws_subnet.private.id}"
+  instance_type = "t2.micro"
 }
-
 
 ## ECS
 
