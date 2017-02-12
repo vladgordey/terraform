@@ -3,8 +3,6 @@ provider "aws" {
   region = "${var.aws_region}"
 }
 
-## EC2
-
 ### Network
 
 data "aws_availability_zones" "available" {}
@@ -42,7 +40,7 @@ resource "aws_route_table_association" "a" {
 ### Compute
 
 resource "aws_autoscaling_group" "app" {
-  name                 = "tf-test-asg"
+  name                 = "vlad-gordey-asg"
   vpc_zone_identifier  = ["${aws_subnet.main.*.id}"]
   min_size             = "${var.asg_min}"
   max_size             = "${var.asg_max}"
@@ -50,55 +48,8 @@ resource "aws_autoscaling_group" "app" {
   launch_configuration = "${aws_launch_configuration.app.name}"
 }
 
-data "template_file" "cloud_config" {
-  template = "${file("${path.module}/cloud-config.yml")}"
 
-  vars {
-    aws_region         = "${var.aws_region}"
-    ecs_cluster_name   = "${aws_ecs_cluster.main.name}"
-    ecs_log_level      = "info"
-    ecs_agent_version  = "latest"
-    ecs_log_group_name = "${aws_cloudwatch_log_group.ecs.name}"
-  }
-}
 
-data "aws_ami" "stable_coreos" {
-  most_recent = true
-
-  filter {
-    name   = "description"
-    values = ["CoreOS stable *"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  owners = ["595879546273"] # CoreOS
-}
-
-resource "aws_launch_configuration" "app" {
-  security_groups = [
-    "${aws_security_group.instance_sg.id}",
-  ]
-
-  key_name                    = "${var.key_name}"
-  image_id                    = "${data.aws_ami.stable_coreos.id}"
-  instance_type               = "${var.instance_type}"
-  iam_instance_profile        = "${aws_iam_instance_profile.app.name}"
-  user_data                   = "${data.template_file.cloud_config.rendered}"
-  associate_public_ip_address = true
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
 
 ### Security
 
@@ -106,7 +57,7 @@ resource "aws_security_group" "lb_sg" {
   description = "controls access to the application ELB"
 
   vpc_id = "${aws_vpc.main.id}"
-  name   = "tf-ecs-lbsg"
+  name   = "vladgordey-ecs-lbsg"
 
   ingress {
     protocol    = "tcp"
@@ -143,11 +94,21 @@ resource "aws_security_group" "instance_sg" {
 
   ingress {
     protocol  = "tcp"
-    from_port = 8080
-    to_port   = 8080
+    from_port = 80
+    to_port   = 80
 
     security_groups = [
       "${aws_security_group.lb_sg.id}",
+    ]
+  }
+
+  ingress {
+    protocol  = "tcp"
+    from_port = 443
+    to_port   = 443
+
+    cidr_blocks = [
+      "${var.admin_cidr_ingress}",
     ]
   }
 
@@ -159,46 +120,20 @@ resource "aws_security_group" "instance_sg" {
   }
 }
 
+## EC2
+
+resource "aws_vpc" "main" {
+  cidr_block = "${var.vpc_cidr}"
+  enable_dns_hostnames = true
+  tags {
+    Name = "${var.short_name}-vpc"
+  }
+}
+
+
 ## ECS
 
-resource "aws_ecs_cluster" "main" {
-  name = "terraform_example_ecs_cluster"
-}
 
-data "template_file" "task_definition" {
-  template = "${file("${path.module}/task-definition.json")}"
-
-  vars {
-    image_url        = "ghost:latest"
-    container_name   = "ghost"
-    log_group_region = "${var.aws_region}"
-    log_group_name   = "${aws_cloudwatch_log_group.app.name}"
-  }
-}
-
-resource "aws_ecs_task_definition" "ghost" {
-  family                = "tf_example_ghost_td"
-  container_definitions = "${data.template_file.task_definition.rendered}"
-}
-
-resource "aws_ecs_service" "test" {
-  name            = "tf-example-ecs-ghost"
-  cluster         = "${aws_ecs_cluster.main.id}"
-  task_definition = "${aws_ecs_task_definition.ghost.arn}"
-  desired_count   = 1
-  iam_role        = "${aws_iam_role.ecs_service.name}"
-
-  load_balancer {
-    target_group_arn = "${aws_alb_target_group.test.id}"
-    container_name   = "ghost"
-    container_port   = "2368"
-  }
-
-  depends_on = [
-    "aws_iam_role_policy.ecs_service",
-    "aws_alb_listener.front_end",
-  ]
-}
 
 ## IAM
 
