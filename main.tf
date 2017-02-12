@@ -50,8 +50,7 @@ resource "aws_autoscaling_group" "app" {
   min_size             = "${var.asg_min}"
   max_size             = "${var.asg_max}"
   desired_capacity     = "${var.asg_desired}"
-  launch_configuration = "${aws_launch_configuration.app.name}"
-}
+ }
 
 
 
@@ -130,7 +129,7 @@ resource "aws_security_group" "instance_sg" {
 resource "aws_instance" "another_one" {
   ami           = "ami-5b31fd34"
   vpc_security_group_ids = ["${aws_security_group.instance_sg.id}"]
-  subnet_id = "${aws_subnet.private.id}"
+  subnet_id = "${aws_subnet.main.id}"
   instance_type = "t2.micro"
 }
 
