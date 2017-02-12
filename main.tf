@@ -16,12 +16,14 @@ resource "aws_vpc" "main" {
 }
 
 
-resource "aws_subnet" "main" {
-  count             = "${var.az_count}"
-  cidr_block        = "${cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)}"
-  vpc_id            = "${aws_vpc.main.id}"
-}
 
+resource "aws_subnet" "main" {
+  vpc_id = "${aws_vpc.main.id}"
+  cidr_block = "${var.private_subnet_cidr}"
+  tags {
+    Name = "${var.short_name}-private"
+  }
+}
 resource "aws_internet_gateway" "gw" {
   vpc_id = "${aws_vpc.main.id}"
 }
@@ -37,7 +39,7 @@ resource "aws_route_table" "r" {
 
 resource "aws_route_table_association" "a" {
   count          = "${var.az_count}"
-  subnet_id      = "${element(aws_subnet.main.*.id, count.index)}"
+  subnet_id      = "${element(aws_subnet.main.id, count.index)}"
   route_table_id = "${aws_route_table.r.id}"
 }
 
@@ -45,7 +47,7 @@ resource "aws_route_table_association" "a" {
 
 resource "aws_autoscaling_group" "app" {
   name                 = "vlad-gordey-asg"
-  vpc_zone_identifier  = ["${aws_subnet.main.*.id}"]
+  vpc_zone_identifier  = ["${aws_subnet.main.id}"]
   min_size             = "${var.asg_min}"
   max_size             = "${var.asg_max}"
   desired_capacity     = "${var.asg_desired}"
